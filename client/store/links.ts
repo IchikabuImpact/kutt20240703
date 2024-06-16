@@ -1,9 +1,15 @@
 import { action, Action, thunk, Thunk } from "easy-peasy";
 import axios from "axios";
 import query from "query-string";
-
 import { getAxiosConfig } from "../utils";
 import { APIv2 } from "../consts";
+
+export interface LinksQuery {  // ここに定義を追加
+  all: boolean;
+  limit: string;
+  skip: string;
+  search: string;
+}
 
 export interface Link {
   id: string;
@@ -46,13 +52,6 @@ export interface EditLink {
   address: string;
   description?: string;
   expire_in?: string;
-}
-
-export interface LinksQuery {
-  limit: string;
-  skip: string;
-  search: string;
-  all: boolean;
 }
 
 export interface LinksListRes {
@@ -140,3 +139,4 @@ export const links: Links = {
     state.loading = payload;
   })
 };
+

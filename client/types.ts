@@ -6,3 +6,10 @@ export interface TokenPayload {
   iat: number;
   exp: number;
 }
+
+export interface LinksQuery {
+  all?: boolean;
+  limit: string;
+  skip?: string;
+  search?: string;
+}

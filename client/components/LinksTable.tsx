@@ -1,7 +1,7 @@
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import React, { FC, useState, useEffect } from "react";
-import { useFormState } from "react-use-form-state";
+import { useForm, Controller } from "react-hook-form";
 import { Flex } from "rebass/styled-components";
 import styled, { css } from "styled-components";
 import { ifProp } from "styled-tools";
@@ -12,7 +12,7 @@ import ms from "ms";
 
 import { removeProtocol, withComma, errorMessage } from "../utils";
 import { useStoreActions, useStoreState } from "../store";
-import { Link as LinkType } from "../store/links";
+import { Link as LinkType, LinksQuery } from "../store/links"; // 正しいインポートパスに修正
 import { Checkbox, TextInput } from "./Input";
 import { NavButton, Button } from "./Button";
 import { Col, RowCenter } from "./Layout";
@@ -122,9 +122,14 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
   const isAdmin = useStoreState((s) => s.auth.isAdmin);
   const ban = useStoreActions((s) => s.links.ban);
   const edit = useStoreActions((s) => s.links.edit);
-  const [banFormState, { checkbox }] = useFormState<BanForm>();
-  const [editFormState, { text, label, password }] = useFormState<EditForm>(
-    {
+  const { control, handleSubmit, reset } = useForm<BanForm>();
+  const {
+    control: controlEdit,
+    handleSubmit: handleEditSubmit,
+    setValue,
+    reset: resetEdit
+  } = useForm<EditForm>({
+    defaultValues: {
       target: link.target,
       address: link.address,
       description: link.description,
@@ -134,9 +139,9 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
           })
         : "",
       password: ""
-    },
-    { withIds: true }
-  );
+    }
+  });
+
   const [copied, setCopied] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [qrModal, setQRModal] = useState(false);
@@ -153,10 +158,10 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
     }, 1500);
   };
 
-  const onBan = async () => {
+  const onBan = async (data: BanForm) => {
     setBanLoading(true);
     try {
-      const res = await ban({ id: link.id, ...banFormState.values });
+      const res = await ban({ id: link.id, ...data });
       setBanMessage(res.message, "green");
       setTimeout(() => {
         setBanModal(false);
@@ -167,22 +172,22 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
     setBanLoading(false);
   };
 
-  const onEdit = async () => {
+  const onEdit = async (data: EditForm) => {
     if (editLoading) return;
     setEditLoading(true);
     try {
-      await edit({ id: link.id, ...editFormState.values });
+      await edit({ id: link.id, ...data });
       setShowEdit(false);
     } catch (err) {
       setEditMessage(errorMessage(err));
     }
-    editFormState.setField("password", "");
+    setValue("password", "");
     setEditLoading(false);
   };
 
   const toggleEdit = () => {
     setShowEdit((s) => !s);
-    if (showEdit) editFormState.reset();
+    if (showEdit) resetEdit();
     setEditMessage("");
   };
 
@@ -335,10 +340,14 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
             py={[3, 3, 24]}
             width={1}
           >
-            <Flex alignItems="flex-start" width={1}>
+            <Flex
+              alignItems="flex-start"
+              width={1}
+              as="form"
+              onSubmit={handleEditSubmit(onEdit)}
+            >
               <Col alignItems="flex-start" mr={3}>
                 <Text
-                  {...label("target")}
                   as="label"
                   mb={2}
                   fontSize={[14, 15]}
@@ -346,23 +355,26 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
                 >
                   Target:
                 </Text>
-                <Flex as="form">
-                  <TextInput
-                    {...text("target")}
-                    placeholder="Target..."
-                    placeholderSize={[13, 14]}
-                    fontSize={[14, 15]}
-                    height={[40, 44]}
-                    width={[1, 300, 420]}
-                    pl={[3, 24]}
-                    pr={[3, 24]}
-                    required
-                  />
-                </Flex>
+                <Controller
+                  name="target"
+                  control={controlEdit}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      placeholder="Target..."
+                      placeholderSize={[13, 14]}
+                      fontSize={[14, 15]}
+                      height={[40, 44]}
+                      width={[1, 300, 420]}
+                      pl={[3, 24]}
+                      pr={[3, 24]}
+                      required
+                    />
+                  )}
+                />
               </Col>
               <Col alignItems="flex-start" mr={3}>
                 <Text
-                  {...label("address")}
                   as="label"
                   mb={2}
                   fontSize={[14, 15]}
@@ -370,23 +382,26 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
                 >
                   {link.domain || publicRuntimeConfig.DEFAULT_DOMAIN}/
                 </Text>
-                <Flex as="form">
-                  <TextInput
-                    {...text("address")}
-                    placeholder="Custom address..."
-                    placeholderSize={[13, 14]}
-                    fontSize={[14, 15]}
-                    height={[40, 44]}
-                    width={[1, 210, 240]}
-                    pl={[3, 24]}
-                    pr={[3, 24]}
-                    required
-                  />
-                </Flex>
+                <Controller
+                  name="address"
+                  control={controlEdit}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      placeholder="Custom address..."
+                      placeholderSize={[13, 14]}
+                      fontSize={[14, 15]}
+                      height={[40, 44]}
+                      width={[1, 210, 240]}
+                      pl={[3, 24]}
+                      pr={[3, 24]}
+                      required
+                    />
+                  )}
+                />
               </Col>
               <Col alignItems="flex-start">
                 <Text
-                  {...label("password")}
                   as="label"
                   mb={2}
                   fontSize={[14, 15]}
@@ -394,28 +409,29 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
                 >
                   Password
                 </Text>
-                <Flex as="form">
-                  <TextInput
-                    {...password({
-                      name: "password"
-                    })}
-                    placeholder={link.password ? "••••••••" : "Password..."}
-                    autocomplete="off"
-                    data-lpignore
-                    pl={[3, 24]}
-                    pr={[3, 24]}
-                    placeholderSize={[13, 14]}
-                    fontSize={[14, 15]}
-                    height={[40, 44]}
-                    width={[1, 210, 240]}
-                  />
-                </Flex>
+                <Controller
+                  name="password"
+                  control={controlEdit}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      placeholder={link.password ? "~~~~~~~~" : "Password..."}
+                      autocomplete="off"
+                      data-lpignore
+                      pl={[3, 24]}
+                      pr={[3, 24]}
+                      placeholderSize={[13, 14]}
+                      fontSize={[14, 15]}
+                      height={[40, 44]}
+                      width={[1, 210, 240]}
+                    />
+                  )}
+                />
               </Col>
             </Flex>
             <Flex alignItems="flex-start" width={1} mt={3}>
               <Col alignItems="flex-start" mr={3}>
                 <Text
-                  {...label("description")}
                   as="label"
                   mb={2}
                   fontSize={[14, 15]}
@@ -423,23 +439,26 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
                 >
                   Description:
                 </Text>
-                <Flex as="form">
-                  <TextInput
-                    {...text("description")}
-                    placeholder="description..."
-                    placeholderSize={[13, 14]}
-                    fontSize={[14, 15]}
-                    height={[40, 44]}
-                    width={[1, 300, 420]}
-                    pl={[3, 24]}
-                    pr={[3, 24]}
-                    required
-                  />
-                </Flex>
+                <Controller
+                  name="description"
+                  control={controlEdit}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      placeholder="description..."
+                      placeholderSize={[13, 14]}
+                      fontSize={[14, 15]}
+                      height={[40, 44]}
+                      width={[1, 300, 420]}
+                      pl={[3, 24]}
+                      pr={[3, 24]}
+                      required
+                    />
+                  )}
+                />
               </Col>
               <Col alignItems="flex-start">
                 <Text
-                  {...label("expire_in")}
                   as="label"
                   mb={2}
                   fontSize={[14, 15]}
@@ -447,19 +466,23 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
                 >
                   Expire in:
                 </Text>
-                <Flex as="form">
-                  <TextInput
-                    {...text("expire_in")}
-                    placeholder="2 minutes/hours/days"
-                    placeholderSize={[13, 14]}
-                    fontSize={[14, 15]}
-                    height={[40, 44]}
-                    width={[1, 210, 240]}
-                    pl={[3, 24]}
-                    pr={[3, 24]}
-                    required
-                  />
-                </Flex>
+                <Controller
+                  name="expire_in"
+                  control={controlEdit}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      placeholder="2 minutes/hours/days"
+                      placeholderSize={[13, 14]}
+                      fontSize={[14, 15]}
+                      height={[40, 44]}
+                      width={[1, 210, 240]}
+                      pl={[3, 24]}
+                      pr={[3, 24]}
+                      required
+                    />
+                  )}
+                />
               </Col>
             </Flex>
             <Button
@@ -467,7 +490,7 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
               mt={3}
               height={[30, 38]}
               disabled={editLoading}
-              onClick={onEdit}
+              type="submit"
             >
               <Icon
                 name={editLoading ? "spinner" : "refresh"}
@@ -508,10 +531,34 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
             <Span bold>&quot;{removeProtocol(link.link)}&quot;</Span>?
           </Text>
           <RowCenter>
-            <Checkbox {...checkbox("user")} label="User" mb={12} />
-            <Checkbox {...checkbox("userLinks")} label="User links" mb={12} />
-            <Checkbox {...checkbox("host")} label="Host" mb={12} />
-            <Checkbox {...checkbox("domain")} label="Domain" mb={12} />
+            <Controller
+              name="user"
+              control={control}
+              render={({ field }) => (
+                <Checkbox {...field} label="User" mb={12} checked={field.value} />
+              )}
+            />
+            <Controller
+              name="userLinks"
+              control={control}
+              render={({ field }) => (
+                <Checkbox {...field} label="User links" mb={12} checked={field.value} />
+              )}
+            />
+            <Controller
+              name="host"
+              control={control}
+              render={({ field }) => (
+                <Checkbox {...field} label="Host" mb={12} checked={field.value} />
+              )}
+            />
+            <Controller
+              name="domain"
+              control={control}
+              render={({ field }) => (
+                <Checkbox {...field} label="Domain" mb={12} checked={field.value} />
+              )}
+            />
           </RowCenter>
           <Flex justifyContent="center" mt={4}>
             {banLoading ? (
@@ -527,7 +574,7 @@ const Row: FC<RowProps> = ({ index, link, setDeleteModal }) => {
                 <Button color="gray" mr={3} onClick={() => setBanModal(false)}>
                   Cancel
                 </Button>
-                <Button color="red" ml={3} onClick={onBan}>
+                <Button color="red" ml={3} onClick={handleSubmit(onBan)}>
                   <Icon name="stop" stroke="white" mr={2} />
                   Ban
                 </Button>
@@ -551,34 +598,42 @@ const LinksTable: FC = () => {
   const isAdmin = useStoreState((s) => s.auth.isAdmin);
   const links = useStoreState((s) => s.links);
   const { get, remove } = useStoreActions((s) => s.links);
+  const { control, handleSubmit, setValue, watch } = useForm<Form>({
+    defaultValues: { skip: "0", limit: "10", all: false, search: "" }
+  });
   const [tableMessage, setTableMessage] = useState("No links to show.");
   const [deleteModal, setDeleteModal] = useState(-1);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteMessage, setDeleteMessage] = useMessage();
-  const [formState, { label, checkbox, text }] = useFormState<Form>(
-    { skip: "0", limit: "10", all: false },
-    { withIds: true }
-  );
 
-  const options = formState.values;
+  const options = watch();
   const linkToDelete = links.items[deleteModal];
 
   useEffect(() => {
-    get(options).catch((err) =>
-      setTableMessage(err?.response?.data?.error || "An error occurred.")
-    );
-  }, [options, get]);
-
-  const onSubmit = (e) => {
-    e.preventDefault();
-    get(options);
-  };
+    if (options.limit) {
+      const linksQuery: LinksQuery = {
+        limit: options.limit,
+        skip: options.skip || '',
+        search: options.search || '',
+        all: options.all || false,
+      };
+      get(linksQuery).catch((err) =>
+        setTableMessage(err?.response?.data?.error || "An error occurred.")
+      );
+    }
+  }, [options, get, setTableMessage]);
 
   const onDelete = async () => {
     setDeleteLoading(true);
     try {
       await remove(linkToDelete.id);
-      await get(options);
+      const linksQuery: LinksQuery = {
+        limit: options.limit,
+        skip: options.skip || '',
+        search: options.search || '',
+        all: options.all || false,
+      };
+      await get(linksQuery);
       setDeleteModal(-1);
     } catch (err) {
       setDeleteMessage(errorMessage(err));
@@ -587,7 +642,7 @@ const LinksTable: FC = () => {
   };
 
   const onNavChange = (nextPage: number) => () => {
-    formState.setField("skip", (parseInt(options.skip) + nextPage).toString());
+    setValue("skip", (parseInt(options.skip) + nextPage).toString());
   };
 
   const Nav = (
@@ -603,8 +658,8 @@ const LinksTable: FC = () => {
             <NavButton
               disabled={options.limit === c}
               onClick={() => {
-                formState.setField("limit", c);
-                formState.setField("skip", "0");
+                setValue("limit", c);
+                setValue("skip", "0");
               }}
             >
               {c}
@@ -649,29 +704,41 @@ const LinksTable: FC = () => {
         <thead>
           <Tr justifyContent="space-between">
             <Th flexGrow={1} flexShrink={1}>
-              <Flex as="form" onSubmit={onSubmit}>
-                <TextInput
-                  {...text("search")}
-                  placeholder="Search..."
-                  height={[30, 32]}
-                  placeholderSize={[13, 13, 13, 13]}
-                  fontSize={[14]}
-                  pl={12}
-                  pr={12}
-                  width={[1]}
-                  br="3px"
-                  bbw="2px"
+              <Flex as="form" onSubmit={handleSubmit(get)}>
+                <Controller
+                  name="search"
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      placeholder="Search..."
+                      height={[30, 32]}
+                      placeholderSize={[13, 13, 13, 13]}
+                      fontSize={[14]}
+                      pl={12}
+                      pr={12}
+                      width={[1]}
+                      br="3px"
+                      bbw="2px"
+                    />
+                  )}
                 />
 
                 {isAdmin && (
-                  <Checkbox
-                    {...label("all")}
-                    {...checkbox("all")}
-                    label="All links"
-                    ml={3}
-                    fontSize={[14, 15]}
-                    width={[15, 16]}
-                    height={[15, 16]}
+                  <Controller
+                    name="all"
+                    control={control}
+                    render={({ field }) => (
+                      <Checkbox
+                        {...field}
+                        label="All links"
+                        ml={3}
+                        fontSize={[14, 15]}
+                        width={[15, 16]}
+                        height={[15, 16]}
+                        checked={field.value}
+                      />
+                    )}
                   />
                 )}
               </Flex>
@@ -759,3 +826,4 @@ const LinksTable: FC = () => {
 };
 
 export default LinksTable;
+

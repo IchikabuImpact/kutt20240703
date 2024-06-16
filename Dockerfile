@@ -1,27 +1,20 @@
-FROM node:16.14.0-alpine
+FROM node:18.17.0-alpine
 
-ENV NODE_OPTIONS="--max-old-space-size=3072"
+RUN apk add --update bash python3 make g++ linux-headers
 
-# インストールするパッケージを追加
-RUN apk add --update bash python3 make g++ linux-headers 
-
-# Setting working directory
 WORKDIR /usr/src/app
 
-# Installing dependencies
 COPY package*.json ./
-RUN npm install --legacy-peer-deps && npm install --save-dev @types/tough-cookie @types/react @types/react-dom
-# Copying source files
+
+RUN npm install --legacy-peer-deps --force
+
 COPY . .
 
-# Give permission to run script
 RUN chmod +x ./wait-for-it.sh
 
-# Build files
+RUN npm cache clean --force
+
 RUN npm run build
 
-EXPOSE 3000
-
-# Running the app
-CMD [ "npm", "start" ]
+CMD ["npm", "start"]
 

@@ -1,0 +1,43 @@
+version: "3"
+
+services:
+  kutt:
+    build: .
+    depends_on:
+      - postgres
+      - redis
+    command: ["./wait-for-it.sh", "postgres:5432", "--", "npm", "start"]
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    networks:
+      - kutt_network
+
+  redis:
+    image: redis:6.0-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - kutt_network
+
+  postgres:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 331155
+      POSTGRES_DB: kutt
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - kutt_network
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  kutt_network:
+    driver: bridge
+
